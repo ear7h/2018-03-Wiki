@@ -1,12 +1,14 @@
 package main
 
 import (
-	"net/http"
-	"io"
-	"path"
-	"gopkg.in/russross/blackfriday.v2"
-	"io/ioutil"
 	"bytes"
+	"io"
+	"io/ioutil"
+	"net/http"
+	"os"
+	"path"
+
+	"gopkg.in/russross/blackfriday.v2"
 )
 
 const MarkDownPages = "markdownpages"
@@ -35,8 +37,21 @@ func (h *WikiHandler) get(path string) (io.Reader, error) {
 
 }
 
-func (h *WikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (h *WikiHandler) post(r *http.Request) (io.Reader, error) {
 
+	abs := h.absPath(r.URL.Path)
+	file, err := os.Create(abs)
+	if err != nil {
+		// handle error
+		return nil, err
+	}
+
+	io.Copy(file, r.Body)
+
+	return nil, nil
+}
+
+func (h *WikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	var data io.Reader
 	var err error
@@ -44,6 +59,12 @@ func (h *WikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet: // handle get request
 		data, err = h.get(r.URL.Path)
+
+	case http.MethodPost:
+		data, err = h.post(r)
+
+		http.Redirect(w, r, r.URL.String(), http.StatusPermanentRedirect)
+		return
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
