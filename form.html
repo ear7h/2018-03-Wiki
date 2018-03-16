@@ -1,0 +1,45 @@
+<html>
+<head>
+    <title>Create page</title>
+    <style>
+        html, body {
+            height: 100%;
+            width: 100%;
+        }
+
+        #inputbox {
+            width: 80%;
+            height: 100px;
+        }
+
+    </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+
+</head>
+<body>
+
+<h1>Page "<span id="page-name"></span>" not found</h1>
+<p>feel free to make one</p>
+
+<form action="" method="post" id="in-form">
+    <h2><label>author</label></h2>
+    <input name="author" type="text">
+    <br/>
+
+    <h2><label>post</label></h2>
+    <textarea name="post"></textarea>
+
+    <br/>
+    <input type="submit">
+</form>
+
+<script>
+    let title = document.querySelector("#page-name")
+    title.innerText = window.location.href
+
+</script>
+
+</body>
+
+</html>
