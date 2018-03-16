@@ -9,9 +9,23 @@ import (
 	"path"
 
 	"gopkg.in/russross/blackfriday.v2"
+	"log"
+	"fmt"
+	"strings"
 )
 
 const MarkDownPages = "markdownpages"
+var PageFormat string
+
+func init() {
+
+	byt, err := ioutil.ReadFile("page.html")
+	if err != nil {
+		panic(err)
+	}
+
+	PageFormat = string(byt)
+}
 
 type WikiHandler struct {
 	root string
@@ -30,14 +44,16 @@ func (h *WikiHandler) get(path string) (io.Reader, error) {
 		return nil, err
 	}
 
-	reader := bytes.NewReader(
-		blackfriday.Run(data))
+	reader := strings.NewReader(
+		fmt.Sprintf(PageFormat, blackfriday.Run(data)))
 
 	return reader, nil
 
 }
 
 func (h *WikiHandler) post(r *http.Request) (io.Reader, error) {
+
+	r.ParseForm()
 
 	abs := h.absPath(r.URL.Path)
 	file, err := os.Create(abs)
@@ -46,9 +62,16 @@ func (h *WikiHandler) post(r *http.Request) (io.Reader, error) {
 		return nil, err
 	}
 
-	io.Copy(file, r.Body)
+	fmt.Fprint(file, r.PostFormValue("post"))
 
-	return nil, nil
+	file.Close()
+
+	data, _ := ioutil.ReadFile(abs)
+
+	reader := bytes.NewReader(
+		blackfriday.Run(data))
+
+	return reader, nil
 }
 
 func (h *WikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -56,26 +79,37 @@ func (h *WikiHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	var data io.Reader
 	var err error
 
+	log.Printf("%s %s\n", r.Method, r.URL.Path)
+
 	switch r.Method {
 	case http.MethodGet: // handle get request
 		data, err = h.get(r.URL.Path)
+		if err != nil {
+			data, err = os.Open("form.html")
+		}
+
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		io.Copy(w, data)
 
 	case http.MethodPost:
 		data, err = h.post(r)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
 
-		http.Redirect(w, r, r.URL.String(), http.StatusPermanentRedirect)
-		return
+		w.WriteHeader(http.StatusOK)
+		io.Copy(w, data)
+
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
 
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.WriteHeader(http.StatusOK)
-	io.Copy(w, data)
 }
 
 func main() {
